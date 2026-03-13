@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARYAN Version 8</title>
+<title>ARYAN Version 9</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
@@ -14,15 +14,37 @@
 
 <style>
 body{margin:0;font-family:Arial;background:#0f172a;color:white}
-header{background:#020617;padding:15px;text-align:center;font-size:24px;font-weight:bold}
-.dashboard{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
-.sidebar{background:#020617;padding:20px}
-.sidebar button{width:100%;margin:6px 0;padding:10px;border:none;border-radius:8px;background:#1e293b;color:white;cursor:pointer}
-.content{padding:20px}
+header{background:#020617;padding:15px;text-align:center;font-size:22px;font-weight:bold}
+
+/* MOBILE APP STYLE */
+.dashboard{display:flex;flex-direction:column;min-height:100vh}
+.content{flex:1;padding:15px}
+
+/* bottom navigation like mobile apps */
+.bottomNav{
+position:fixed;
+bottom:0;
+left:0;
+right:0;
+background:#020617;
+display:flex;
+justify-content:space-around;
+padding:10px 0;
+border-top:1px solid #1e293b;
+}
+
+.bottomNav button{
+background:none;
+color:white;
+border:none;
+font-size:14px;
+}
+
 .card{background:#1e293b;border-radius:12px;padding:15px;margin-bottom:15px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .subject{background:#0f172a;padding:10px;border-radius:10px}
 .timer{font-size:18px;margin:5px 0}
+
 button{cursor:pointer;border:none;border-radius:6px;padding:6px 10px;margin:3px}
 .start{background:#22c55e}
 .stop{background:#ef4444}
@@ -30,43 +52,32 @@ button{cursor:pointer;border:none;border-radius:6px;padding:6px 10px;margin:3px}
 .delete{background:#ef4444}
 .add{background:#3b82f6}
 .install{background:#16a34a}
+
 input,select{padding:6px;border-radius:6px;border:none;margin:3px}
+
 .stat{background:#0f172a;padding:10px;border-radius:8px;margin:5px}
 .flex{display:flex;flex-wrap:wrap}
+
 canvas{background:white;border-radius:10px;padding:10px}
-.chatBox{height:250px;overflow-y:auto;background:#020617;padding:10px;border-radius:8px;margin-top:10px}
+
+.chatBox{height:220px;overflow-y:auto;background:#020617;padding:10px;border-radius:8px;margin-top:10px}
 .msg{margin:4px 0}
+
+/* heatmap */
+.heatmap{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+.heat{height:20px;border-radius:3px;background:#1e293b}
+
+.typing{font-size:12px;color:#94a3b8}
 </style>
 </head>
 
 <body>
 <header>
-ARYAN Version 8
-<button class="install" id="installBtn" style="display:none">Install App</button>
+ARYAN Study OS V9
+<button class="install" id="installBtn" style="display:none">Install</button>
 </header>
 
 <div class="dashboard">
-
-<div class="sidebar">
-<button onclick="tab('dashboard')">Dashboard</button>
-<button onclick="tab('subjects')">Track</button>
-<button onclick="tab('analytics')">Analytics</button>
-<button onclick="tab('pomodoro')">Pomodoro</button>
-<button onclick="tab('room')">Friends</button>
-<button id="installBtn" style="
-padding:10px 16px;
-border:none;
-background:#4CAF50;
-color:white;
-border-radius:8px;
-cursor:pointer;
-display:none;
-">
-📲 Install App
-">
-📲 Install App
-</button>
-</div>
 
 <div class="content">
 
@@ -80,6 +91,10 @@ display:none;
 <div class="stat" id="month">Month: 0h</div>
 <div class="stat" id="streak">Streak: 0 🔥</div>
 </div>
+
+<h3>Study Heatmap</h3>
+<div id="heatmap" class="heatmap"></div>
+
 </div>
 </div>
 
@@ -132,25 +147,41 @@ display:none;
 </div>
 </div>
 
-<!-- FRIENDS ROOM -->
+<!-- FRIEND ROOM -->
 <div id="room" class="tab" style="display:none">
 <div class="card">
-<h2>Friends Study Room</h2>
+<h2>Study Room</h2>
+
 <input id="roomName" placeholder="Room name">
 <input id="userName" placeholder="Your name">
 <button onclick="joinRoom()">Join Room</button>
 
-<h3>Active Users / Leaderboard</h3>
+<h3>Leaderboard</h3>
 <div id="roomUsers"></div>
 
 <h3>Chat</h3>
 <div class="chatBox" id="chatBox"></div>
-<input id="chatInput" placeholder="Type message">
+<div id="typing" class="typing"></div>
+<input id="chatInput" placeholder="Message" oninput="typing()">
 <button onclick="sendMsg()">Send</button>
+
+<br><br>
+<button onclick="startVoice()">🎤 Voice Room</button>
+
 </div>
 </div>
 
 </div>
+
+<!-- mobile nav -->
+<div class="bottomNav">
+<button onclick="tab('dashboard')">Home</button>
+<button onclick="tab('subjects')">Track</button>
+<button onclick="tab('analytics')">Stats</button>
+<button onclick="tab('pomodoro')">Focus</button>
+<button onclick="tab('room')">Room</button>
+</div>
+
 </div>
 
 <script>
@@ -178,8 +209,9 @@ const db=firebase.database()
 let subjects=JSON.parse(localStorage.getItem("subjects"))||[]
 let data=JSON.parse(localStorage.getItem("data"))||{}
 let timers={}
-let room=localStorage.getItem("room")||null
-let user=localStorage.getItem("user")||null
+
+let room=null
+let user=null
 
 let today=new Date().toISOString().slice(0,10)
 if(!data[today]) data[today]={subjects:{}}
@@ -255,7 +287,6 @@ data[today].subjects[s]++
 updateTimer(s)
 updateStats()
 save()
-updateRoomTime()
 
 },1000)
 }
@@ -278,90 +309,60 @@ function sum(obj){return Object.values(obj||{}).reduce((a,b)=>a+b,0)}
 function updateStats(){
 let todayTime=sum(data[today].subjects)
 document.getElementById("today").innerText="Today: "+Math.floor(todayTime/3600)+"h"
-calcStreak()
+renderHeatmap()
 }
 
-function calcStreak(){
-let days=Object.keys(data)
-let streak=0
-for(let i=days.length-1;i>=0;i--){
-let t=sum(data[days[i]].subjects)
-if(t>0) streak++
-else break
-}
-document.getElementById("streak").innerText="Streak: "+streak+" 🔥"
-}
+/* heatmap */
+function renderHeatmap(){
+let box=document.getElementById("heatmap")
+if(!box) return
 
-/* Pomodoro */
-let pomo=1500
-let pomoTimer=null
+box.innerHTML=""
 
-function startPomo(){
-if(pomoTimer) return
-pomoTimer=setInterval(()=>{
-pomo--
-let m=Math.floor(pomo/60)
-let s=pomo%60
+let days=Object.keys(data).slice(-35)
 
-document.getElementById("pomoTimer").innerText=`${m}:${s.toString().padStart(2,'0')}`
+days.forEach(d=>{
+let t=sum(data[d].subjects)
+let div=document.createElement("div")
+div.className="heat"
 
-if(pomo<=0){
-alert("Focus session complete")
-clearInterval(pomoTimer)
-pomoTimer=null
-pomo=1500
+if(t>0) div.style.background="#22c55e"
+
+box.appendChild(div)
+})
 }
 
+/* typing indicator */
+function typing(){
+if(!room||!user) return
+
+db.ref("rooms/"+room+"/typing").set(user+" typing...")
+
+setTimeout(()=>{
+ db.ref("rooms/"+room+"/typing").set("")
 },1000)
 }
 
-function resetPomo(){
-clearInterval(pomoTimer)
-pomoTimer=null
-pomo=1500
+/* chat */
+function sendMsg(){
+let txt=document.getElementById("chatInput").value
+if(!txt||!room) return
 
-document.getElementById("pomoTimer").innerText="25:00"
+ db.ref("rooms/"+room+"/chat").push({user:user,msg:txt})
+
+ document.getElementById("chatInput").value=""
 }
 
-/* ROOM SYSTEM */
+/* join room */
 function joinRoom(){
+room=document.getElementById("roomName").value
+user=document.getElementById("userName").value
 
-room=document.getElementById("roomName").value.trim()
-user=document.getElementById("userName").value.trim()
-
-if(!room||!user){
-alert("Enter room name and your name")
-return
-}
-
-// save permanent room
-localStorage.setItem("room",room)
-localStorage.setItem("user",user)
-
-// add user
-
-db.ref("rooms/"+room+"/users/"+user).set({time:0,online:true})
-
-// join message
-
-db.ref("rooms/"+room+"/chat").push({system:true,msg:user+" joined the room",time:Date.now()})
-
-listenRoom()
 listenChat()
-
-alert("Joined room: "+room)
-
+listenUsers()
 }
 
-function updateRoomTime(){
-if(!room||!user) return
-
-let total=sum(data[today].subjects)
-
-db.ref("rooms/"+room+"/users/"+user).set({time:Math.floor(total/3600),online:true})
-}
-
-function listenRoom(){
+function listenUsers(){
 
 db.ref("rooms/"+room+"/users").on("value",snap=>{
 
@@ -370,86 +371,64 @@ box.innerHTML=""
 
 let users=snap.val()||{}
 
-let arr=Object.entries(users).sort((a,b)=>(b[1].time||0)-(a[1].time||0))
-
-arr.forEach(u=>{
-
+Object.keys(users).forEach(u=>{
 let d=document.createElement("div")
-
-let online=u[1].online?"🟢":"⚪"
-
- d.innerText=`${online} ${u[0]} — ${u[1].time||0}h`
-
+d.innerText=u
 box.appendChild(d)
-
 })
 
 })
-}
-
-/* CHAT */
-function sendMsg(){
-
-let txt=document.getElementById("chatInput").value
-
-if(!txt||!room) return
-
- db.ref("rooms/"+room+"/chat").push({user:user,msg:txt,time:Date.now()})
-
- document.getElementById("chatInput").value=""
 
 }
 
 function listenChat(){
-
- db.ref("rooms/"+room+"/chat").off()
 
  db.ref("rooms/"+room+"/chat").on("child_added",snap=>{
 
  let m=snap.val()
  let box=document.getElementById("chatBox")
 
- if(!box) return
-
  let div=document.createElement("div")
  div.className="msg"
-
- if(m.system){
- div.innerText="⚡ "+m.msg
- div.style.color="#38bdf8"
- }else{
  div.innerText=m.user+": "+m.msg
- }
 
  box.appendChild(div)
  box.scrollTop=box.scrollHeight
 
  })
 
-}
-
-/* PWA */
-let deferredPrompt
-
-window.addEventListener('beforeinstallprompt',(e)=>{
-
-e.preventDefault()
-
-deferredPrompt=e
-
-document.getElementById("installBtn").style.display="inline-block"
-
-})
-
-installBtn.onclick=()=>{
-
-deferredPrompt.prompt()
-
-deferredPrompt.userChoice.then(()=>{
-installBtn.style.display="none"
-})
+ db.ref("rooms/"+room+"/typing").on("value",snap=>{
+ document.getElementById("typing").innerText=snap.val()||""
+ })
 
 }
+
+/* voice room (simple) */
+function startVoice(){
+ navigator.mediaDevices.getUserMedia({audio:true}).then(()=>{
+ alert("Voice room microphone connected (basic demo)")
+ })
+}
+
+/* PWA INSTALL */
+let deferredPrompt=null
+const installBtn=document.getElementById("installBtn")
+
+window.addEventListener("beforeinstallprompt",(e)=>{
+ e.preventDefault()
+ deferredPrompt=e
+ installBtn.style.display="inline-block"
+})
+
+installBtn.addEventListener("click",async()=>{
+ if(!deferredPrompt) return
+
+ deferredPrompt.prompt()
+ await deferredPrompt.userChoice
+
+ deferredPrompt=null
+ installBtn.style.display="none"
+})
 
 /* Service Worker */
 if('serviceWorker' in navigator){
@@ -459,20 +438,6 @@ if('serviceWorker' in navigator){
 window.onload=function(){
 renderSubjects()
 updateStats()
-
-// auto join saved room
-if(room && user){
-
-let rn=document.getElementById("roomName")
-let un=document.getElementById("userName")
-
-if(rn) rn.value=room
-if(un) un.value=user
-
-listenRoom()
-listenChat()
-
-}
 }
 
 </script>
