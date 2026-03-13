@@ -62,6 +62,10 @@ ARYAN Version 8
 <h2>Stats</h2>
 <div class="flex">
 <div class="stat" id="today">Today: 0h</div>
+<div class="stat" id="week">Week: 0h</div>
+<div class="stat" id="month">Month: 0h</div>
+<div class="stat" id="streak">Streak: 0 🔥</div>
+</div>
 <div class="stat" id="streak">Streak: 0 🔥</div>
 </div>
 </div>
@@ -89,8 +93,18 @@ ARYAN Version 8
 
 <div id="analytics" class="tab" style="display:none">
 <div class="card">
+<h2>Daily Study</h2>
+<canvas id="dayChart"></canvas>
+</div>
+
+<div class="card">
 <h2>Weekly Study</h2>
 <canvas id="weekChart"></canvas>
+</div>
+
+<div class="card">
+<h2>Monthly Study</h2>
+<canvas id="monthChart"></canvas>
 </div>
 </div>
 
