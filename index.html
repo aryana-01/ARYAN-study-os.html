@@ -52,11 +52,12 @@ ARYAN Version 8
 <button onclick="tab('subjects')">Track</button>
 <button onclick="tab('analytics')">Analytics</button>
 <button onclick="tab('pomodoro')">Pomodoro</button>
-<button onclick="tab('room')">Friends Room</button>
+<button onclick="tab('room')">Friends</button>
 </div>
 
 <div class="content">
 
+<!-- DASHBOARD -->
 <div id="dashboard" class="tab">
 <div class="card">
 <h2>Stats</h2>
@@ -66,11 +67,10 @@ ARYAN Version 8
 <div class="stat" id="month">Month: 0h</div>
 <div class="stat" id="streak">Streak: 0 🔥</div>
 </div>
-<div class="stat" id="streak">Streak: 0 🔥</div>
-</div>
 </div>
 </div>
 
+<!-- SUBJECT TRACKER -->
 <div id="subjects" class="tab" style="display:none">
 <div class="card">
 <h2>Add Tracker</h2>
@@ -91,6 +91,7 @@ ARYAN Version 8
 </div>
 </div>
 
+<!-- ANALYTICS -->
 <div id="analytics" class="tab" style="display:none">
 <div class="card">
 <h2>Daily Study</h2>
@@ -108,6 +109,7 @@ ARYAN Version 8
 </div>
 </div>
 
+<!-- POMODORO -->
 <div id="pomodoro" class="tab" style="display:none">
 <div class="card">
 <h2>Pomodoro Focus</h2>
@@ -117,6 +119,7 @@ ARYAN Version 8
 </div>
 </div>
 
+<!-- FRIENDS ROOM -->
 <div id="room" class="tab" style="display:none">
 <div class="card">
 <h2>Friends Study Room</h2>
@@ -124,8 +127,16 @@ ARYAN Version 8
 <input id="userName" placeholder="Your name">
 <button onclick="joinRoom()">Join Room</button>
 
+<div class="card" style="margin-top:10px">
+<b>Invite Link</b>
+<div id="inviteLink">Join a room to generate link</div>
+</div>
+
 <h3>Active Users / Leaderboard</h3>
 <div id="roomUsers"></div>
+
+<h3>Room Study Graph</h3>
+<canvas id="roomChart"></canvas>
 
 <h3>Chat</h3>
 <div class="chatBox" id="chatBox"></div>
@@ -139,7 +150,6 @@ ARYAN Version 8
 
 <script>
 
-/* Tabs */
 function tab(id){
  document.querySelectorAll('.tab').forEach(t=>t.style.display='none')
  document.getElementById(id).style.display='block'
@@ -159,11 +169,12 @@ appId:"1:917490074799:web:47b32dfc46a05934ac805a"
 firebase.initializeApp(firebaseConfig)
 const db=firebase.database()
 
-/* Local data */
+/* Local storage */
 let subjects=JSON.parse(localStorage.getItem("subjects"))||[]
 let data=JSON.parse(localStorage.getItem("data"))||{}
 let timers={}
-let room=null,user=null
+let room=localStorage.getItem("room")||null
+let user=localStorage.getItem("user")||null
 
 let today=new Date().toISOString().slice(0,10)
 if(!data[today]) data[today]={subjects:{}}
@@ -206,6 +217,7 @@ if(!grid) return
 grid.innerHTML=""
 
 subjects.forEach(s=>{
+
 if(!data[today].subjects[s.name]) data[today].subjects[s.name]=0
 
 let sec=data[today].subjects[s.name]
@@ -225,6 +237,7 @@ div.innerHTML=`
 `
 
 grid.appendChild(div)
+
 })
 }
 
@@ -232,11 +245,13 @@ function start(s){
 if(timers[s]) return
 
 timers[s]=setInterval(()=>{
+
 data[today].subjects[s]++
 updateTimer(s)
 updateStats()
 save()
 updateRoomTime()
+
 },1000)
 }
 
@@ -303,21 +318,34 @@ pomo=1500
 document.getElementById("pomoTimer").innerText="25:00"
 }
 
-/* Room */
+/* ROOM SYSTEM */
 function joinRoom(){
-room=document.getElementById("roomName").value
-user=document.getElementById("userName").value
 
-if(!room||!user) return alert("enter room and name")
+room=document.getElementById("roomName").value.trim()
+user=document.getElementById("userName").value.trim()
 
-// mark user online
- db.ref("rooms/"+room+"/users/"+user).set({time:0,online:true})
+if(!room||!user){
+alert("Enter room name and your name")
+return
+}
 
- // send join notification
- db.ref("rooms/"+room+"/chat").push({system:true,msg:user+" joined the room",time:Date.now()})
+// save permanent room
+localStorage.setItem("room",room)
+localStorage.setItem("user",user)
 
- listenRoom()
- listenChat()
+// add user
+
+db.ref("rooms/"+room+"/users/"+user).set({time:0,online:true})
+
+// join message
+
+db.ref("rooms/"+room+"/chat").push({system:true,msg:user+" joined the room",time:Date.now()})
+
+listenRoom()
+listenChat()
+
+alert("Joined room: "+room)
+
 }
 
 function updateRoomTime(){
@@ -325,72 +353,86 @@ if(!room||!user) return
 
 let total=sum(data[today].subjects)
 
-db.ref("rooms/"+room+"/users/"+user).set({time:Math.floor(total/3600)})
+// find active subject
+let active=""
+for(let k in timers){ if(timers[k]) active=k }
+
+ db.ref("rooms/"+room+"/users/"+user).set({
+ time:Math.floor(total/3600),
+ studying:active||"Idle",
+ online:true
+ })
+})
 }
 
 function listenRoom(){
 
- db.ref("rooms/"+room+"/users").on("value",snap=>{
+db.ref("rooms/"+room+"/users").on("value",snap=>{
 
- let box=document.getElementById("roomUsers")
- box.innerHTML=""
+let box=document.getElementById("roomUsers")
+box.innerHTML=""
 
- let users=snap.val()||{}
+let users=snap.val()||{}
 
- let arr=Object.entries(users).sort((a,b)=>(b[1].time||0)-(a[1].time||0))
+let arr=Object.entries(users).sort((a,b)=>(b[1].time||0)-(a[1].time||0))
 
- arr.forEach(u=>{
+arr.forEach(u=>{
 
- let d=document.createElement("div")
+let d=document.createElement("div")
 
- let online=u[1].online?"🟢":"⚪"
+let online=u[1].online?"🟢":"⚪"
 
- d.innerText=`${online} ${u[0]} — ${u[1].time||0}h`
+ d.innerText=`${online} ${u[0]} — ${u[1].time||0}h (${u[1].studying||'Idle'})`
 
- box.appendChild(d)
+box.appendChild(d)
 
- })
+})
 
- })
+})
 }
 
-/* Chat */
+/* CHAT */
 function sendMsg(){
+
 let txt=document.getElementById("chatInput").value
+
 if(!txt||!room) return
 
-db.ref("rooms/"+room+"/chat").push({user,msg:txt,time:Date.now()})
+ db.ref("rooms/"+room+"/chat").push({user:user,msg:txt,time:Date.now()})
 
-document.getElementById("chatInput").value=""
+ document.getElementById("chatInput").value=""
+
 }
 
 function listenChat(){
 
+ db.ref("rooms/"+room+"/chat").off()
+
  db.ref("rooms/"+room+"/chat").on("child_added",snap=>{
 
  let m=snap.val()
-
  let box=document.getElementById("chatBox")
 
- let div=document.createElement("div")
+ if(!box) return
 
+ let div=document.createElement("div")
  div.className="msg"
 
  if(m.system){
  div.innerText="⚡ "+m.msg
  div.style.color="#38bdf8"
  }else{
- div.innerText=`${m.user}: ${m.msg}`
+ div.innerText=m.user+": "+m.msg
  }
 
  box.appendChild(div)
-
  box.scrollTop=box.scrollHeight
 
-})
+ })
+
 }
 
-/* PWA Install */
+/* PWA */
 let deferredPrompt
 
 window.addEventListener('beforeinstallprompt',(e)=>{
@@ -408,30 +450,79 @@ installBtn.onclick=()=>{
 deferredPrompt.prompt()
 
 deferredPrompt.userChoice.then(()=>{
-
 installBtn.style.display="none"
-
 })
 
 }
 
 /* Service Worker */
 if('serviceWorker' in navigator){
-
-navigator.serviceWorker.register('sw.js')
-
-}
-
-/* Notifications */
-if('Notification' in window){
-
-Notification.requestPermission()
-
+ navigator.serviceWorker.register('sw.js')
 }
 
 window.onload=function(){
 renderSubjects()
 updateStats()
+
+// URL room invite
+let params=new URLSearchParams(window.location.search)
+let r=params.get("room")
+if(r){
+room=r
+localStorage.setItem("room",room)
+}
+
+// auto join saved room
+if(room && user){
+
+let rn=document.getElementById("roomName")
+let un=document.getElementById("userName")
+
+if(rn) rn.value=room
+if(un) un.value=user
+
+// show invite link
+let link=window.location.origin+"/?room="+room
+let el=document.getElementById("inviteLink")
+if(el) el.innerText=link
+
+listenRoom()
+listenChat()
+listenRoomGraph()
+
+}
+}
+
+/* ROOM GRAPH */
+let roomChart
+
+function listenRoomGraph(){
+if(!room) return
+
+ db.ref("rooms/"+room+"/users").on("value",snap=>{
+
+ let users=snap.val()||{}
+ let labels=[]
+ let hours=[]
+
+ Object.entries(users).forEach(u=>{
+ labels.push(u[0])
+ hours.push(u[1].time||0)
+ })
+
+ let ctx=document.getElementById("roomChart")
+ if(!ctx) return
+
+ if(roomChart) roomChart.destroy()
+
+ roomChart=new Chart(ctx,{
+ type:"bar",
+ data:{labels:labels,datasets:[{label:"Study Hours",data:hours}]}
+ })
+
+ })
+}
+
 }
 
 </script>
