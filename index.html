@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARYAN Version 9</title>
+<title>ARYAN Study OS V10</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
@@ -16,29 +16,11 @@
 body{margin:0;font-family:Arial;background:#0f172a;color:white}
 header{background:#020617;padding:15px;text-align:center;font-size:22px;font-weight:bold}
 
-/* MOBILE APP STYLE */
 .dashboard{display:flex;flex-direction:column;min-height:100vh}
 .content{flex:1;padding:15px}
 
-/* bottom navigation like mobile apps */
-.bottomNav{
-position:fixed;
-bottom:0;
-left:0;
-right:0;
-background:#020617;
-display:flex;
-justify-content:space-around;
-padding:10px 0;
-border-top:1px solid #1e293b;
-}
-
-.bottomNav button{
-background:none;
-color:white;
-border:none;
-font-size:14px;
-}
+.bottomNav{position:fixed;bottom:0;left:0;right:0;background:#020617;display:flex;justify-content:space-around;padding:10px 0;border-top:1px solid #1e293b}
+.bottomNav button{background:none;color:white;border:none;font-size:14px}
 
 .card{background:#1e293b;border-radius:12px;padding:15px;margin-bottom:15px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
@@ -63,25 +45,27 @@ canvas{background:white;border-radius:10px;padding:10px}
 .chatBox{height:220px;overflow-y:auto;background:#020617;padding:10px;border-radius:8px;margin-top:10px}
 .msg{margin:4px 0}
 
-/* heatmap */
 .heatmap{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
 .heat{height:20px;border-radius:3px;background:#1e293b}
 
 .typing{font-size:12px;color:#94a3b8}
+
+.online{color:#22c55e;font-size:12px}
+
+.music{margin-top:10px}
 </style>
 </head>
 
 <body>
 <header>
-ARYAN Study OS V9
-<button class="install" id="installBtn" style="display:none">Install</button>
+ARYAN Study OS V10
+<button class="install" id="installBtn" style="display:none">Install App</button>
 </header>
 
 <div class="dashboard">
 
 <div class="content">
 
-<!-- DASHBOARD -->
 <div id="dashboard" class="tab">
 <div class="card">
 <h2>Stats</h2>
@@ -98,7 +82,6 @@ ARYAN Study OS V9
 </div>
 </div>
 
-<!-- SUBJECT TRACKER -->
 <div id="subjects" class="tab" style="display:none">
 <div class="card">
 <h2>Add Tracker</h2>
@@ -119,35 +102,29 @@ ARYAN Study OS V9
 </div>
 </div>
 
-<!-- ANALYTICS -->
 <div id="analytics" class="tab" style="display:none">
-<div class="card">
-<h2>Daily Study</h2>
-<canvas id="dayChart"></canvas>
+<div class="card"><h2>Daily Study</h2><canvas id="dayChart"></canvas></div>
+<div class="card"><h2>Weekly Study</h2><canvas id="weekChart"></canvas></div>
+<div class="card"><h2>Monthly Study</h2><canvas id="monthChart"></canvas></div>
 </div>
 
-<div class="card">
-<h2>Weekly Study</h2>
-<canvas id="weekChart"></canvas>
-</div>
-
-<div class="card">
-<h2>Monthly Study</h2>
-<canvas id="monthChart"></canvas>
-</div>
-</div>
-
-<!-- POMODORO -->
 <div id="pomodoro" class="tab" style="display:none">
 <div class="card">
 <h2>Pomodoro Focus</h2>
 <h1 id="pomoTimer">25:00</h1>
 <button onclick="startPomo()">Start</button>
 <button onclick="resetPomo()">Reset</button>
+
+<div class="music">
+<h3>Focus Music</h3>
+<audio controls loop>
+<source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8b0c1a6d5.mp3?filename=lofi-study-112191.mp3" type="audio/mpeg">
+</audio>
+</div>
+
 </div>
 </div>
 
-<!-- FRIEND ROOM -->
 <div id="room" class="tab" style="display:none">
 <div class="card">
 <h2>Study Room</h2>
@@ -155,8 +132,9 @@ ARYAN Study OS V9
 <input id="roomName" placeholder="Room name">
 <input id="userName" placeholder="Your name">
 <button onclick="joinRoom()">Join Room</button>
+<button onclick="copyInvite()">Invite Link</button>
 
-<h3>Leaderboard</h3>
+<h3>Online Users</h3>
 <div id="roomUsers"></div>
 
 <h3>Chat</h3>
@@ -173,7 +151,6 @@ ARYAN Study OS V9
 
 </div>
 
-<!-- mobile nav -->
 <div class="bottomNav">
 <button onclick="tab('dashboard')">Home</button>
 <button onclick="tab('subjects')">Track</button>
@@ -191,7 +168,6 @@ function tab(id){
  document.getElementById(id).style.display='block'
 }
 
-/* Firebase */
 const firebaseConfig={
 apiKey:"AIzaSyCZeJsYAz9CwAxWHXmJ6z9pznyK7Yvg1VQ",
 authDomain:"study-tracker-app-3606a.firebaseapp.com",
@@ -205,7 +181,6 @@ appId:"1:917490074799:web:47b32dfc46a05934ac805a"
 firebase.initializeApp(firebaseConfig)
 const db=firebase.database()
 
-/* Local storage */
 let subjects=JSON.parse(localStorage.getItem("subjects"))||[]
 let data=JSON.parse(localStorage.getItem("data"))||{}
 let timers={}
@@ -312,7 +287,6 @@ document.getElementById("today").innerText="Today: "+Math.floor(todayTime/3600)+
 renderHeatmap()
 }
 
-/* heatmap */
 function renderHeatmap(){
 let box=document.getElementById("heatmap")
 if(!box) return
@@ -332,7 +306,6 @@ box.appendChild(div)
 })
 }
 
-/* typing indicator */
 function typing(){
 if(!room||!user) return
 
@@ -343,7 +316,6 @@ setTimeout(()=>{
 },1000)
 }
 
-/* chat */
 function sendMsg(){
 let txt=document.getElementById("chatInput").value
 if(!txt||!room) return
@@ -353,10 +325,19 @@ if(!txt||!room) return
  document.getElementById("chatInput").value=""
 }
 
-/* join room */
+function copyInvite(){
+let link=location.href+"?room="+room
+navigator.clipboard.writeText(link)
+alert("Invite link copied")
+}
+
 function joinRoom(){
 room=document.getElementById("roomName").value
 user=document.getElementById("userName").value
+
+if(!room||!user) return
+
+ db.ref("rooms/"+room+"/users/"+user).set({online:true})
 
 listenChat()
 listenUsers()
@@ -373,7 +354,7 @@ let users=snap.val()||{}
 
 Object.keys(users).forEach(u=>{
 let d=document.createElement("div")
-d.innerText=u
+d.innerHTML=u+" <span class='online'>● online</span>"
 box.appendChild(d)
 })
 
@@ -403,14 +384,12 @@ function listenChat(){
 
 }
 
-/* voice room (simple) */
 function startVoice(){
  navigator.mediaDevices.getUserMedia({audio:true}).then(()=>{
- alert("Voice room microphone connected (basic demo)")
+ alert("Voice mic connected")
  })
 }
 
-/* PWA INSTALL */
 let deferredPrompt=null
 const installBtn=document.getElementById("installBtn")
 
@@ -430,9 +409,12 @@ installBtn.addEventListener("click",async()=>{
  installBtn.style.display="none"
 })
 
-/* Service Worker */
 if('serviceWorker' in navigator){
  navigator.serviceWorker.register('sw.js')
+}
+
+if(Notification && Notification.permission!="granted"){
+ Notification.requestPermission()
 }
 
 window.onload=function(){
