@@ -127,16 +127,8 @@ ARYAN Version 8
 <input id="userName" placeholder="Your name">
 <button onclick="joinRoom()">Join Room</button>
 
-<div class="card" style="margin-top:10px">
-<b>Invite Link</b>
-<div id="inviteLink">Join a room to generate link</div>
-</div>
-
 <h3>Active Users / Leaderboard</h3>
 <div id="roomUsers"></div>
-
-<h3>Room Study Graph</h3>
-<canvas id="roomChart"></canvas>
 
 <h3>Chat</h3>
 <div class="chatBox" id="chatBox"></div>
@@ -353,16 +345,7 @@ if(!room||!user) return
 
 let total=sum(data[today].subjects)
 
-// find active subject
-let active=""
-for(let k in timers){ if(timers[k]) active=k }
-
- db.ref("rooms/"+room+"/users/"+user).set({
- time:Math.floor(total/3600),
- studying:active||"Idle",
- online:true
- })
-})
+db.ref("rooms/"+room+"/users/"+user).set({time:Math.floor(total/3600),online:true})
 }
 
 function listenRoom(){
@@ -382,7 +365,7 @@ let d=document.createElement("div")
 
 let online=u[1].online?"🟢":"⚪"
 
- d.innerText=`${online} ${u[0]} — ${u[1].time||0}h (${u[1].studying||'Idle'})`
+ d.innerText=`${online} ${u[0]} — ${u[1].time||0}h`
 
 box.appendChild(d)
 
@@ -464,14 +447,6 @@ window.onload=function(){
 renderSubjects()
 updateStats()
 
-// URL room invite
-let params=new URLSearchParams(window.location.search)
-let r=params.get("room")
-if(r){
-room=r
-localStorage.setItem("room",room)
-}
-
 // auto join saved room
 if(room && user){
 
@@ -481,48 +456,10 @@ let un=document.getElementById("userName")
 if(rn) rn.value=room
 if(un) un.value=user
 
-// show invite link
-let link=window.location.origin+"/?room="+room
-let el=document.getElementById("inviteLink")
-if(el) el.innerText=link
-
 listenRoom()
 listenChat()
-listenRoomGraph()
 
 }
-}
-
-/* ROOM GRAPH */
-let roomChart
-
-function listenRoomGraph(){
-if(!room) return
-
- db.ref("rooms/"+room+"/users").on("value",snap=>{
-
- let users=snap.val()||{}
- let labels=[]
- let hours=[]
-
- Object.entries(users).forEach(u=>{
- labels.push(u[0])
- hours.push(u[1].time||0)
- })
-
- let ctx=document.getElementById("roomChart")
- if(!ctx) return
-
- if(roomChart) roomChart.destroy()
-
- roomChart=new Chart(ctx,{
- type:"bar",
- data:{labels:labels,datasets:[{label:"Study Hours",data:hours}]}
- })
-
- })
-}
-
 }
 
 </script>
