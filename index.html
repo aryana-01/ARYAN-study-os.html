@@ -124,7 +124,7 @@ ARYAN Version 8
 <input id="userName" placeholder="Your name">
 <button onclick="joinRoom()">Join Room</button>
 
-<h3>Leaderboard</h3>
+<h3>Active Users / Leaderboard</h3>
 <div id="roomUsers"></div>
 
 <h3>Chat</h3>
@@ -310,9 +310,14 @@ user=document.getElementById("userName").value
 
 if(!room||!user) return alert("enter room and name")
 
-db.ref("rooms/"+room+"/users/"+user).set({time:0})
-listenRoom()
-listenChat()
+// mark user online
+ db.ref("rooms/"+room+"/users/"+user).set({time:0,online:true})
+
+ // send join notification
+ db.ref("rooms/"+room+"/chat").push({system:true,msg:user+" joined the room",time:Date.now()})
+
+ listenRoom()
+ listenChat()
 }
 
 function updateRoomTime(){
@@ -325,26 +330,28 @@ db.ref("rooms/"+room+"/users/"+user).set({time:Math.floor(total/3600)})
 
 function listenRoom(){
 
-db.ref("rooms/"+room+"/users").on("value",snap=>{
+ db.ref("rooms/"+room+"/users").on("value",snap=>{
 
-let box=document.getElementById("roomUsers")
-box.innerHTML=""
+ let box=document.getElementById("roomUsers")
+ box.innerHTML=""
 
-let users=snap.val()||{}
+ let users=snap.val()||{}
 
-let arr=Object.entries(users).sort((a,b)=>b[1].time-a[1].time)
+ let arr=Object.entries(users).sort((a,b)=>(b[1].time||0)-(a[1].time||0))
 
-arr.forEach(u=>{
+ arr.forEach(u=>{
 
-let d=document.createElement("div")
+ let d=document.createElement("div")
 
-d.innerText=`🏆 ${u[0]} — ${u[1].time}h`
+ let online=u[1].online?"🟢":"⚪"
 
-box.appendChild(d)
+ d.innerText=`${online} ${u[0]} — ${u[1].time||0}h`
 
-})
+ box.appendChild(d)
 
-})
+ })
+
+ })
 }
 
 /* Chat */
@@ -359,21 +366,26 @@ document.getElementById("chatInput").value=""
 
 function listenChat(){
 
-db.ref("rooms/"+room+"/chat").on("child_added",snap=>{
+ db.ref("rooms/"+room+"/chat").on("child_added",snap=>{
 
-let m=snap.val()
+ let m=snap.val()
 
-let box=document.getElementById("chatBox")
+ let box=document.getElementById("chatBox")
 
-let div=document.createElement("div")
+ let div=document.createElement("div")
 
-div.className="msg"
+ div.className="msg"
 
-div.innerText=`${m.user}: ${m.msg}`
+ if(m.system){
+ div.innerText="⚡ "+m.msg
+ div.style.color="#38bdf8"
+ }else{
+ div.innerText=`${m.user}: ${m.msg}`
+ }
 
-box.appendChild(div)
+ box.appendChild(div)
 
-box.scrollTop=box.scrollHeight
+ box.scrollTop=box.scrollHeight
 
 })
 }
