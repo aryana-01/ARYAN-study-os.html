@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jarvis Study OS V6</title>
+<title>Jarvis Study OS V7</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -26,6 +29,7 @@ button{cursor:pointer;border:none;border-radius:6px;padding:6px 10px;margin:3px}
 .rename{background:#f59e0b}
 .delete{background:#ef4444}
 .add{background:#3b82f6}
+.install{background:#16a34a}
 input,select{padding:6px;border-radius:6px;border:none;margin:3px}
 .stat{background:#0f172a;padding:10px;border-radius:8px;margin:5px}
 .flex{display:flex;flex-wrap:wrap}
@@ -36,7 +40,10 @@ canvas{background:white;border-radius:10px;padding:10px}
 </head>
 
 <body>
-<header>Jarvis Study OS V6</header>
+<header>
+Jarvis Study OS V7
+<button class="install" id="installBtn" style="display:none">Install App</button>
+</header>
 
 <div class="dashboard">
 
@@ -55,8 +62,6 @@ canvas{background:white;border-radius:10px;padding:10px}
 <h2>Stats</h2>
 <div class="flex">
 <div class="stat" id="today">Today: 0h</div>
-<div class="stat" id="week">Week: 0h</div>
-<div class="stat" id="month">Month: 0h</div>
 <div class="stat" id="streak">Streak: 0 🔥</div>
 </div>
 </div>
@@ -84,13 +89,8 @@ canvas{background:white;border-radius:10px;padding:10px}
 
 <div id="analytics" class="tab" style="display:none">
 <div class="card">
-<h2>Weekly Hours</h2>
+<h2>Weekly Study</h2>
 <canvas id="weekChart"></canvas>
-</div>
-
-<div class="card">
-<h2>Monthly Hours</h2>
-<canvas id="monthChart"></canvas>
 </div>
 </div>
 
@@ -125,9 +125,10 @@ canvas{background:white;border-radius:10px;padding:10px}
 
 <script>
 
+/* Tabs */
 function tab(id){
- document.querySelectorAll('.tab').forEach(t=>t.style.display='none');
- document.getElementById(id).style.display='block';
+ document.querySelectorAll('.tab').forEach(t=>t.style.display='none')
+ document.getElementById(id).style.display='block'
 }
 
 /* Firebase */
@@ -144,7 +145,7 @@ appId:"1:917490074799:web:47b32dfc46a05934ac805a"
 firebase.initializeApp(firebaseConfig)
 const db=firebase.database()
 
-/* Local Data */
+/* Local data */
 let subjects=JSON.parse(localStorage.getItem("subjects"))||[]
 let data=JSON.parse(localStorage.getItem("data"))||{}
 let timers={}
@@ -246,7 +247,6 @@ document.getElementById("today").innerText="Today: "+Math.floor(todayTime/3600)+
 calcStreak()
 }
 
-/* Streak */
 function calcStreak(){
 let days=Object.keys(data)
 let streak=0
@@ -268,13 +268,16 @@ pomoTimer=setInterval(()=>{
 pomo--
 let m=Math.floor(pomo/60)
 let s=pomo%60
+
 document.getElementById("pomoTimer").innerText=`${m}:${s.toString().padStart(2,'0')}`
+
 if(pomo<=0){
 alert("Focus session complete")
 clearInterval(pomoTimer)
 pomoTimer=null
 pomo=1500
 }
+
 },1000)
 }
 
@@ -282,6 +285,7 @@ function resetPomo(){
 clearInterval(pomoTimer)
 pomoTimer=null
 pomo=1500
+
 document.getElementById("pomoTimer").innerText="25:00"
 }
 
@@ -299,6 +303,7 @@ listenChat()
 
 function updateRoomTime(){
 if(!room||!user) return
+
 let total=sum(data[today].subjects)
 
 db.ref("rooms/"+room+"/users/"+user).set({time:Math.floor(total/3600)})
@@ -307,6 +312,7 @@ db.ref("rooms/"+room+"/users/"+user).set({time:Math.floor(total/3600)})
 function listenRoom(){
 
 db.ref("rooms/"+room+"/users").on("value",snap=>{
+
 let box=document.getElementById("roomUsers")
 box.innerHTML=""
 
@@ -315,10 +321,15 @@ let users=snap.val()||{}
 let arr=Object.entries(users).sort((a,b)=>b[1].time-a[1].time)
 
 arr.forEach(u=>{
+
 let d=document.createElement("div")
+
 d.innerText=`🏆 ${u[0]} — ${u[1].time}h`
+
 box.appendChild(d)
+
 })
+
 })
 }
 
@@ -335,16 +346,61 @@ document.getElementById("chatInput").value=""
 function listenChat(){
 
 db.ref("rooms/"+room+"/chat").on("child_added",snap=>{
+
 let m=snap.val()
+
 let box=document.getElementById("chatBox")
 
 let div=document.createElement("div")
+
 div.className="msg"
+
 div.innerText=`${m.user}: ${m.msg}`
 
 box.appendChild(div)
+
 box.scrollTop=box.scrollHeight
+
 })
+}
+
+/* PWA Install */
+let deferredPrompt
+
+window.addEventListener('beforeinstallprompt',(e)=>{
+
+e.preventDefault()
+
+deferredPrompt=e
+
+document.getElementById("installBtn").style.display="inline-block"
+
+})
+
+installBtn.onclick=()=>{
+
+deferredPrompt.prompt()
+
+deferredPrompt.userChoice.then(()=>{
+
+installBtn.style.display="none"
+
+})
+
+}
+
+/* Service Worker */
+if('serviceWorker' in navigator){
+
+navigator.serviceWorker.register('sw.js')
+
+}
+
+/* Notifications */
+if('Notification' in window){
+
+Notification.requestPermission()
+
 }
 
 window.onload=function(){
